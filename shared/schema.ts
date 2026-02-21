@@ -1,18 +1,33 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+export * from "./models/auth";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const curseLogs = pgTable("curse_logs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  word: text("word").notNull(),
+  punishment: text("punishment").notNull(),
+  isCompleted: boolean("is_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertCurseLogSchema = createInsertSchema(curseLogs).omit({
+  id: true,
+  createdAt: true,
+  punishment: true,
+  isCompleted: true,
+  userId: true
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type CurseLog = typeof curseLogs.$inferSelect;
+export type InsertCurseLog = z.infer<typeof insertCurseLogSchema>;
+
+export type CreateCurseLogRequest = InsertCurseLog;
+export type UpdateCurseLogRequest = Partial<InsertCurseLog> & { isCompleted?: boolean };
+
+export interface CurseStats {
+  totalCurses: number;
+  uncompletedPunishments: number;
+  topWords: { word: string; count: number }[];
+}

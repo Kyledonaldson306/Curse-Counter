@@ -1,38 +1,63 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import {
+  curseLogs,
+  type CreateCurseLogRequest,
+  type UpdateCurseLogRequest,
+  type CurseLog,
+  type CurseStats
+} from "@shared/schema";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getCurseLogs(userId: string): Promise<CurseLog[]>;
+  getCurseStats(userId: string): Promise<CurseStats>;
+  createCurseLog(userId: string, word: string, punishment: string): Promise<CurseLog>;
+  updateCurseLog(id: number, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getCurseLogs(userId: string): Promise<CurseLog[]> {
+    return await db.select().from(curseLogs).where(eq(curseLogs.userId, userId)).orderBy(desc(curseLogs.createdAt));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getCurseStats(userId: string): Promise<CurseStats> {
+    const allLogs = await this.getCurseLogs(userId);
+    const uncompletedPunishments = allLogs.filter(log => !log.isCompleted).length;
+    
+    // Calculate top words
+    const wordCounts = allLogs.reduce((acc, log) => {
+      acc[log.word] = (acc[log.word] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const topWords = Object.entries(wordCounts)
+      .map(([word, count]) => ({ word, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      totalCurses: allLogs.length,
+      uncompletedPunishments,
+      topWords
+    };
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createCurseLog(userId: string, word: string, punishment: string): Promise<CurseLog> {
+    const [log] = await db.insert(curseLogs).values({
+      userId,
+      word,
+      punishment
+    }).returning();
+    return log;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateCurseLog(id: number, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined> {
+    const [updated] = await db.update(curseLogs)
+      .set(updates)
+      .where(eq(curseLogs.id, id))
+      .returning();
+    return updated;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
