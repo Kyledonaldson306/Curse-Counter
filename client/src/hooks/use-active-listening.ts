@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useCreateCurseLog } from "./use-curse-logs";
 import { useToast } from "@/hooks/use-toast";
 
-const CURSE_WORDS = ["badword1", "badword2", "curse1", "curse2"]; // Placeholder, should be more comprehensive
+const CURSE_WORDS = [
+  "damn", "hell", "crap", "piss", "bastard", "bloody", 
+  "shit", "fuck", "ass", "bitch"
+]; // A more realistic list of curse words for demonstration
 
 export function useActiveListening() {
   const [isListening, setIsListening] = useState(false);
