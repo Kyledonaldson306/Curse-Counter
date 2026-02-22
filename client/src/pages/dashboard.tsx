@@ -4,12 +4,14 @@ import { LogCurseForm } from "@/components/dashboard/log-curse-form";
 import { PunishmentList } from "@/components/dashboard/punishment-list";
 import { StatsChart } from "@/components/dashboard/stats-chart";
 import { StatCard } from "@/components/ui/stat-card";
-import { Flame, Gavel, Skull, LogOut } from "lucide-react";
+import { Flame, Gavel, Skull, LogOut, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useActiveListening } from "@/hooks/use-active-listening";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { data: stats } = useCurseStats();
+  const { isListening, startListening, stopListening } = useActiveListening();
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
@@ -24,6 +26,24 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <Button 
+              variant={isListening ? "destructive" : "secondary"} 
+              size="sm" 
+              onClick={isListening ? stopListening : startListening}
+              className="gap-2"
+            >
+              {isListening ? (
+                <>
+                  <Mic className="w-4 h-4 animate-pulse" />
+                  Listening...
+                </>
+              ) : (
+                <>
+                  <MicOff className="w-4 h-4" />
+                  Start Listening
+                </>
+              )}
+            </Button>
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium">{user?.firstName || 'User'}</span>
               <span className="text-xs text-muted-foreground">Level 1 Penitent</span>
