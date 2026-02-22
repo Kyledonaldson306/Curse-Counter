@@ -33,6 +33,42 @@ export function useActiveListening() {
     });
   }, [toast]);
 
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const requestWakeLock = useCallback(async () => {
+    if ("wakeLock" in navigator) {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+        console.log("Wake Lock active");
+      } catch (err) {
+        console.error("Wake Lock failed:", err);
+      }
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release();
+      wakeLockRef.current = null;
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    releaseWakeLock();
+    setIsListening(false);
+    setRemainingTime(null);
+  }, [releaseWakeLock]);
+
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -65,29 +101,48 @@ export function useActiveListening() {
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
       if (event.error === "not-allowed") {
-        setIsListening(false);
+        stopListening();
       }
     };
 
     recognition.onend = () => {
       if (isListening) {
-        recognition.start();
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Restart failed", e);
+        }
       }
     };
 
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
+    setRemainingTime(3600); // 1 hour in seconds
     requestNotificationPermission();
-  }, [isListening, logCurse, notifyUser, requestNotificationPermission, toast]);
+    requestWakeLock();
 
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-  }, []);
+    timerRef.current = setInterval(() => {
+      setRemainingTime((prev) => {
+        if (prev !== null && prev <= 1) {
+          stopListening();
+          toast({
+            title: "Session Ended",
+            description: "Your 1-hour listening session has finished.",
+          });
+          return null;
+        }
+        return prev !== null ? prev - 1 : null;
+      });
+    }, 1000);
+  }, [isListening, logCurse, notifyUser, requestNotificationPermission, requestWakeLock, stopListening, toast]);
 
-  return { isListening, startListening, stopListening };
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      releaseWakeLock();
+    };
+  }, [releaseWakeLock]);
+
+  return { isListening, startListening, stopListening, remainingTime };
 }

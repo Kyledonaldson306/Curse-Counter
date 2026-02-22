@@ -11,7 +11,13 @@ import { useActiveListening } from "@/hooks/use-active-listening";
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { data: stats } = useCurseStats();
-  const { isListening, startListening, stopListening } = useActiveListening();
+  const { isListening, startListening, stopListening, remainingTime } = useActiveListening();
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
@@ -26,24 +32,31 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4">
-            <Button 
-              variant={isListening ? "destructive" : "secondary"} 
-              size="sm" 
-              onClick={isListening ? stopListening : startListening}
-              className="gap-2"
-            >
-              {isListening ? (
-                <>
-                  <Mic className="w-4 h-4 animate-pulse" />
-                  Listening...
-                </>
-              ) : (
-                <>
-                  <MicOff className="w-4 h-4" />
-                  Start Listening
-                </>
+            <div className="flex flex-col items-end mr-2">
+              <Button 
+                variant={isListening ? "destructive" : "secondary"} 
+                size="sm" 
+                onClick={isListening ? stopListening : startListening}
+                className="gap-2"
+              >
+                {isListening ? (
+                  <>
+                    <Mic className="w-4 h-4 animate-pulse" />
+                    {remainingTime !== null ? formatTime(remainingTime) : "Listening..."}
+                  </>
+                ) : (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    Start 1h Session
+                  </>
+                )}
+              </Button>
+              {isListening && (
+                <span className="text-[10px] text-muted-foreground mt-1 uppercase tracking-widest font-bold">
+                  Keep Tab Open
+                </span>
               )}
-            </Button>
+            </div>
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium">{user?.firstName || 'User'}</span>
               <span className="text-xs text-muted-foreground">Level 1 Penitent</span>
