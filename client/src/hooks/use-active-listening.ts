@@ -4,8 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const CURSE_WORDS = [
   "damn", "hell", "crap", "piss", "bastard", "bloody", 
-  "shit", "fuck", "ass", "bitch"
-]; // A more realistic list of curse words for demonstration
+  "shit", "fuck", "ass", "bitch", "penis", "wiener", "asshole"
+];
 
 export function useActiveListening() {
   const [isListening, setIsListening] = useState(false);
@@ -21,10 +21,28 @@ export function useActiveListening() {
 
   const notifyUser = useCallback((word: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Curse Detected!", {
-        body: `You said "${word}". A punishment has been assigned.`,
-        icon: "/favicon.png",
-      });
+      try {
+        const registration = (window as any).navigator.serviceWorker?.controller;
+        if (registration) {
+          // Try to use service worker for background notifications if available
+          registration.postMessage({
+            type: 'CURSE_DETECTED',
+            word
+          });
+        } else {
+          new Notification("Curse Detected!", {
+            body: `You said "${word}". A punishment has been assigned.`,
+            icon: "/favicon.png",
+            tag: 'curse-detection',
+          } as any);
+        }
+      } catch (e) {
+        // Fallback to standard notification
+        new Notification("Curse Detected!", {
+          body: `You said "${word}". A punishment has been assigned.`,
+          icon: "/favicon.png",
+        });
+      }
     }
     toast({
       title: "Curse Detected!",
@@ -89,29 +107,36 @@ export function useActiveListening() {
       const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
       console.log("Heard:", transcript);
       
-      for (const word of CURSE_WORDS) {
-        if (transcript.includes(word)) {
-          logCurse({ word });
-          notifyUser(word);
-          break;
+      const words = transcript.split(/\s+/);
+      for (const heardWord of words) {
+        const cleanWord = heardWord.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+        if (CURSE_WORDS.includes(cleanWord)) {
+          console.log("Detected curse word:", cleanWord);
+          logCurse({ word: cleanWord });
+          notifyUser(cleanWord);
         }
       }
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
-      if (event.error === "not-allowed") {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         stopListening();
       }
     };
 
     recognition.onend = () => {
       if (isListening) {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error("Restart failed", e);
-        }
+        console.log("Recognition ended, restarting...");
+        setTimeout(() => {
+          if (isListening && !recognitionRef.current?.active) {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.error("Restart failed", e);
+            }
+          }
+        }, 100);
       }
     };
 
