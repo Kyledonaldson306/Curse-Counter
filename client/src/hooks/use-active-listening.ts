@@ -8,7 +8,13 @@ const CURSE_WORDS = [
 ];
 
 export function useActiveListening() {
-  const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false);
+  const [isListening, setIsListeningState] = useState(false);
+
+  const setIsListening = useCallback((val: boolean) => {
+    isListeningRef.current = val;
+    setIsListeningState(val);
+  }, []);
   const { mutate: logCurse } = useCreateCurseLog();
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
@@ -126,10 +132,10 @@ export function useActiveListening() {
     };
 
     recognition.onend = () => {
-      if (isListening) {
+      if (isListeningRef.current) {
         console.log("Recognition ended, restarting...");
         setTimeout(() => {
-          if (isListening && !recognitionRef.current?.active) {
+          if (isListeningRef.current && (!recognitionRef.current || !recognitionRef.current.active)) {
             try {
               recognition.start();
             } catch (e) {

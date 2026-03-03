@@ -46,12 +46,12 @@ export function StatsChart() {
               color: 'hsl(var(--foreground))'
             }}
           />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={32}>
+          <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={32} label={{ position: 'right', fill: 'hsl(var(--foreground))', fontSize: 12 }}>
             {data.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'} 
-                fillOpacity={index === 0 ? 1 : 0.5}
+                fill={index === 0 ? 'hsl(var(--primary))' : index === 1 ? 'hsl(var(--destructive))' : 'hsl(var(--muted-foreground))'} 
+                fillOpacity={index === 0 ? 1 : 0.8}
               />
             ))}
           </Bar>
