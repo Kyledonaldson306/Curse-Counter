@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated } from "./auth";
 
 const PUNISHMENTS = [
   "Do 10 pushups",
@@ -25,18 +25,16 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup auth
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  setupAuth(app);
 
   app.get(api.curseLogs.list.path, isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.userId;
     const logs = await storage.getCurseLogs(userId);
     res.json(logs);
   });
 
   app.get(api.curseLogs.stats.path, isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.userId;
     const stats = await storage.getCurseStats(userId);
     res.json(stats);
   });
@@ -44,7 +42,7 @@ export async function registerRoutes(
   app.post(api.curseLogs.create.path, isAuthenticated, async (req: any, res) => {
     try {
       const input = api.curseLogs.create.input.parse(req.body);
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const punishment = getRandomPunishment();
       const log = await storage.createCurseLog(userId, input.word, punishment);
       res.status(201).json(log);

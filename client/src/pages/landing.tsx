@@ -15,15 +15,10 @@ export default function Landing() {
     }
   }, [isLoading, isAuthenticated, setLocation]);
 
-  const handleLogin = () => {
-    window.location.href = "/api/login";
-  };
-
   if (isLoading) return null;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background text-foreground overflow-hidden">
-      {/* Left Panel - Hero */}
       <div className="lg:w-1/2 relative flex flex-col justify-center p-8 lg:p-20 border-b lg:border-r border-white/5">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
         
@@ -69,13 +64,11 @@ export default function Landing() {
           </div>
         </motion.div>
 
-        {/* Footer */}
         <div className="absolute bottom-8 left-8 lg:left-20 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} CurseControl Inc. All rights reserved.
+          &copy; {new Date().getFullYear()} CurseControl Inc. All rights reserved.
         </div>
       </div>
 
-      {/* Right Panel - CTA */}
       <div className="lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-20 bg-secondary/20 relative">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none" />
         
@@ -89,16 +82,17 @@ export default function Landing() {
             <div className="w-20 h-20 bg-gradient-to-tr from-primary to-rose-500 rounded-3xl mx-auto mb-6 shadow-2xl shadow-primary/30 flex items-center justify-center rotate-3">
               <Shield className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-3xl font-bold font-display mb-3">Welcome Back</h2>
-            <p className="text-muted-foreground">Sign in to access your dashboard and active penalties.</p>
+            <h2 className="text-3xl font-bold font-display mb-3">Ready to start?</h2>
+            <p className="text-muted-foreground">Create an account or sign in to access your dashboard and active penalties.</p>
           </div>
 
           <div className="space-y-4">
             <Button 
-              onClick={handleLogin}
+              data-testid="button-get-started"
+              onClick={() => setLocation("/auth")}
               className="w-full h-16 text-lg rounded-xl bg-foreground text-background hover:bg-white/90 shadow-xl shadow-white/5 transition-all hover:scale-[1.02]"
             >
-              Login with Replit <ArrowRight className="ml-2 w-5 h-5" />
+              Get Started <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             
             <p className="text-center text-xs text-muted-foreground mt-6">

@@ -58,16 +58,9 @@ export default function Dashboard() {
               )}
             </div>
             <div className="hidden md:flex flex-col items-end">
-              <span className="text-sm font-medium">{user?.firstName || 'User'}</span>
+              <span className="text-sm font-medium" data-testid="text-user-email">{user?.email || 'User'}</span>
               <span className="text-xs text-muted-foreground">Level 1 Penitent</span>
             </div>
-            {user?.profileImageUrl && (
-              <img 
-                src={user.profileImageUrl} 
-                alt="Profile" 
-                className="w-9 h-9 rounded-full ring-2 ring-white/10"
-              />
-            )}
             <Button variant="ghost" size="icon" onClick={() => logout()}>
               <LogOut className="w-5 h-5" />
             </Button>
