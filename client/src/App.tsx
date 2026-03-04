@@ -8,6 +8,9 @@ import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { SplashScreen } from "@/components/layout/splash-screen";
+import { AnimatePresence } from "framer-motion";
 
 // Protected Route Wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -42,10 +45,18 @@ function Router() {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Router />
+        <AnimatePresence mode="wait">
+          {showSplash ? (
+            <SplashScreen key="splash" onFinish={() => setShowSplash(false)} />
+          ) : (
+            <Router key="router" />
+          )}
+        </AnimatePresence>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
