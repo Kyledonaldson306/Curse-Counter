@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useCreateCurseLog } from "./use-curse-logs";
 import { useToast } from "@/hooks/use-toast";
-
-const CURSE_WORDS = [
-  "damn", "hell", "crap", "piss", "bastard", "bloody", 
-  "shit", "fuck", "ass", "bitch", "penis", "wiener", "asshole"
-];
+import { detectCurseWords } from "@shared/curse-detection";
+import {
+  registerServiceWorker,
+  subscribeToPush,
+  sendLocalNotification,
+  requestNotificationPermission,
+} from "@/lib/push-notifications";
 
 export function useActiveListening() {
   const isListeningRef = useRef(false);
@@ -15,57 +17,50 @@ export function useActiveListening() {
     isListeningRef.current = val;
     setIsListeningState(val);
   }, []);
+
   const { mutate: logCurse } = useCreateCurseLog();
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
-
-  const requestNotificationPermission = useCallback(async () => {
-    if ("Notification" in window && Notification.permission === "default") {
-      await Notification.requestPermission();
-    }
-  }, []);
-
-  const notifyUser = useCallback((word: string) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        const registration = (window as any).navigator.serviceWorker?.controller;
-        if (registration) {
-          // Try to use service worker for background notifications if available
-          registration.postMessage({
-            type: 'CURSE_DETECTED',
-            word
-          });
-        } else {
-          new Notification("Curse Detected!", {
-            body: `You said "${word}". A punishment has been assigned.`,
-            icon: "/favicon.png",
-            tag: 'curse-detection',
-          } as any);
-        }
-      } catch (e) {
-        // Fallback to standard notification
-        new Notification("Curse Detected!", {
-          body: `You said "${word}". A punishment has been assigned.`,
-          icon: "/favicon.png",
-        });
-      }
-    }
-    toast({
-      title: "Curse Detected!",
-      description: `You said "${word}". Punishment assigned.`,
-      variant: "destructive",
-    });
-  }, [toast]);
+  const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const wakeLockRef = useRef<any>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
+  const notifyUser = useCallback(
+    (word: string) => {
+      sendLocalNotification(word);
+
+      toast({
+        title: "Hey! You CURSED!",
+        description: `You said "${word}". Punishment assigned.`,
+        variant: "destructive",
+      });
+    },
+    [toast]
+  );
 
   const requestWakeLock = useCallback(async () => {
     if ("wakeLock" in navigator) {
       try {
         wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
         console.log("Wake Lock active");
+
+        wakeLockRef.current.addEventListener("release", () => {
+          if (isListeningRef.current && "wakeLock" in navigator) {
+            (navigator as any).wakeLock
+              .request("screen")
+              .then((lock: any) => {
+                wakeLockRef.current = lock;
+                console.log("Wake Lock re-acquired");
+              })
+              .catch(() => {});
+          }
+        });
       } catch (err) {
         console.error("Wake Lock failed:", err);
       }
@@ -79,11 +74,29 @@ export function useActiveListening() {
     }
   }, []);
 
-  const stopListening = useCallback(() => {
+  const clearRestartTimeout = useCallback(() => {
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+  }, []);
+
+  const abortRecognition = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e2) {}
+      }
       recognitionRef.current = null;
     }
+    clearRestartTimeout();
+  }, [clearRestartTimeout]);
+
+  const stopListening = useCallback(() => {
+    abortRecognition();
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -91,10 +104,85 @@ export function useActiveListening() {
     releaseWakeLock();
     setIsListening(false);
     setRemainingTime(null);
-  }, [releaseWakeLock]);
+  }, [releaseWakeLock, abortRecognition]);
 
-  const startListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const createRecognition = useCallback(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript =
+        event.results[event.results.length - 1][0].transcript;
+      console.log("Heard:", transcript);
+
+      const curses = detectCurseWords(transcript);
+      for (const curse of curses) {
+        console.log("Detected curse word:", curse);
+        logCurse({ word: curse });
+        notifyUser(curse);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (
+        event.error === "not-allowed" ||
+        event.error === "service-not-allowed"
+      ) {
+        stopListening();
+      }
+    };
+
+    recognition.onend = () => {
+      if (isListeningRef.current) {
+        console.log("Recognition ended, scheduling restart...");
+        clearRestartTimeout();
+        restartTimeoutRef.current = setTimeout(() => {
+          if (isListeningRef.current) {
+            try {
+              abortRecognition();
+              const newRec = createRecognition();
+              if (newRec) {
+                recognitionRef.current = newRec;
+                newRec.start();
+                console.log("Recognition restarted successfully");
+              }
+            } catch (e) {
+              console.error("Restart failed, retrying in 2s:", e);
+              restartTimeoutRef.current = setTimeout(() => {
+                if (isListeningRef.current) {
+                  try {
+                    const retryRec = createRecognition();
+                    if (retryRec) {
+                      recognitionRef.current = retryRec;
+                      retryRec.start();
+                    }
+                  } catch (e2) {
+                    console.error("Second restart failed:", e2);
+                  }
+                }
+              }, 2000);
+            }
+          }
+        }, 300);
+      }
+    };
+
+    return recognition;
+  }, [logCurse, notifyUser, stopListening, clearRestartTimeout, abortRecognition]);
+
+  const startListening = useCallback(async () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({
         title: "Not Supported",
@@ -104,53 +192,18 @@ export function useActiveListening() {
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
+    const permResult = await requestNotificationPermission();
+    if (permResult === "granted") {
+      await subscribeToPush();
+    }
 
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-      console.log("Heard:", transcript);
-      
-      const words = transcript.split(/\s+/);
-      for (const heardWord of words) {
-        const cleanWord = heardWord.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-        if (CURSE_WORDS.includes(cleanWord)) {
-          console.log("Detected curse word:", cleanWord);
-          logCurse({ word: cleanWord });
-          notifyUser(cleanWord);
-        }
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error", event.error);
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        stopListening();
-      }
-    };
-
-    recognition.onend = () => {
-      if (isListeningRef.current) {
-        console.log("Recognition ended, restarting...");
-        setTimeout(() => {
-          if (isListeningRef.current && (!recognitionRef.current || !recognitionRef.current.active)) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.error("Restart failed", e);
-            }
-          }
-        }, 100);
-      }
-    };
+    const recognition = createRecognition();
+    if (!recognition) return;
 
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-    setRemainingTime(3600); // 1 hour in seconds
-    requestNotificationPermission();
+    setRemainingTime(3600);
     requestWakeLock();
 
     timerRef.current = setInterval(() => {
@@ -166,14 +219,46 @@ export function useActiveListening() {
         return prev !== null ? prev - 1 : null;
       });
     }, 1000);
-  }, [isListening, logCurse, notifyUser, requestNotificationPermission, requestWakeLock, stopListening, toast]);
+  }, [createRecognition, requestWakeLock, stopListening, toast]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isListeningRef.current) {
+        console.log("Tab visible again, restarting recognition...");
+        abortRecognition();
+
+        setTimeout(() => {
+          if (isListeningRef.current) {
+            const newRec = createRecognition();
+            if (newRec) {
+              recognitionRef.current = newRec;
+              try {
+                newRec.start();
+                console.log("Recognition restarted after tab focus");
+              } catch (e) {
+                console.error("Failed to restart on focus:", e);
+              }
+            }
+          }
+        }, 500);
+
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [createRecognition, abortRecognition, requestWakeLock]);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      clearRestartTimeout();
       releaseWakeLock();
     };
-  }, [releaseWakeLock]);
+  }, [releaseWakeLock, clearRestartTimeout]);
 
   return { isListening, startListening, stopListening, remainingTime };
 }

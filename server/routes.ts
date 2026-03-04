@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, isAuthenticated } from "./auth";
+import { setupPushRoutes, sendPushToUser } from "./push";
 
 const PUNISHMENTS = [
   "Do 10 pushups",
@@ -26,6 +27,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+  setupPushRoutes(app);
 
   app.get(api.curseLogs.list.path, isAuthenticated, async (req: any, res) => {
     const userId = req.userId;
@@ -45,6 +47,9 @@ export async function registerRoutes(
       const userId = req.userId;
       const punishment = getRandomPunishment();
       const log = await storage.createCurseLog(userId, input.word, punishment);
+
+      sendPushToUser(userId, input.word).catch(() => {});
+
       res.status(201).json(log);
     } catch (err) {
       if (err instanceof z.ZodError) {

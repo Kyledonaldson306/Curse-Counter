@@ -41,3 +41,10 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_log_in_with_replit:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BHzC6J4-piQ7SySyLLsW6rbWOuzPxsV7U6u5Lkv8LDTEJgqJt6DHqNK0cZyGRgvrTz3rTQ7Hy__MU-x122YX020"
+VAPID_PRIVATE_KEY = "sWuUu041vEIkNfYreTS6yKRteKRkE1wi_zbPrj5PQ5I"
+VAPID_EMAIL = "mailto:admin@cursecontrol.app"

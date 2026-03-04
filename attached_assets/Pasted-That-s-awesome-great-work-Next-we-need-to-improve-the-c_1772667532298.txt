@@ -1,0 +1,94 @@
+That's awesome, great work.
+
+Next we need to improve the curse word detection system and the notification behavior.
+
+Right now the detection still misses some curse words, and notifications only work if the user currently has the web app open on their phone or laptop. I want to improve both detection accuracy and notification delivery.
+
+Improve curse word detection
+
+The curse detection still misses some words or variations. Improve the detection system so that it catches:
+
+common curse words
+
+variations and plural forms
+
+words with punctuation attached
+
+words with capitalization differences
+
+stretched spellings (ex: fuuuuck, shiiit)
+
+basic attempts to bypass detection (ex: f*ck, sh!t)
+
+Use normalization techniques such as:
+
+converting text to lowercase
+
+stripping punctuation
+
+pattern matching or regex
+
+expanding the detection list of curse words
+
+If possible, structure the detection logic so it is easy to add more words later.
+
+Improve notification behavior
+
+Currently the "Hey! You CURSED!" notification only appears when the user is actively inside the web app.
+
+I want users to be able to receive notifications even when:
+
+the app is not currently open
+
+the phone screen is locked
+
+the browser tab is in the background
+
+Implement push notifications so users can opt in to receiving alerts from the app.
+
+Requirements:
+
+Ask the user for notification permission
+
+Use browser push notifications (Service Workers + Push API)
+
+Send the notification when a curse word is detected
+
+The notification should still say something like:
+"Hey! You CURSED!"
+
+Maintain session awareness
+
+If a user is currently in a session and closes the app or locks their phone, the system should still:
+
+continue monitoring the session
+
+detect curse words
+
+send the push notification
+
+Fix detection issues when leaving the app
+
+Currently when a user exits the app or backgrounds it on mobile, curse word detection sometimes stops working.
+
+Make sure that:
+
+the backend continues processing session events
+
+detection runs server-side so it does not rely on the UI being open
+
+notifications are triggered by the server
+
+After implementing this
+
+Please show:
+
+updated detection logic
+
+the service worker implementation
+
+push notification setup
+
+any new dependencies
+
+files that were modified
