@@ -65,8 +65,12 @@ export async function registerRoutes(
   app.patch(api.curseLogs.update.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({ message: "Invalid log ID" });
+      }
       const input = api.curseLogs.update.input.parse(req.body);
-      const updated = await storage.updateCurseLog(id, input);
+      const userId = req.userId;
+      const updated = await storage.updateCurseLog(id, userId, input);
       if (!updated) {
         return res.status(404).json({ message: "Curse log not found" });
       }

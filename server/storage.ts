@@ -12,7 +12,7 @@ export interface IStorage {
   getCurseLogs(userId: string): Promise<CurseLog[]>;
   getCurseStats(userId: string): Promise<CurseStats>;
   createCurseLog(userId: string, word: string, punishment: string): Promise<CurseLog>;
-  updateCurseLog(id: number, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined>;
+  updateCurseLog(id: number, userId: string, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -51,10 +51,10 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async updateCurseLog(id: number, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined> {
+  async updateCurseLog(id: number, userId: string, updates: UpdateCurseLogRequest): Promise<CurseLog | undefined> {
     const [updated] = await db.update(curseLogs)
       .set(updates)
-      .where(eq(curseLogs.id, id))
+      .where(and(eq(curseLogs.id, id), eq(curseLogs.userId, userId)))
       .returning();
     return updated;
   }

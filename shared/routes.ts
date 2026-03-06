@@ -39,7 +39,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/curse-logs' as const,
-      input: z.object({ word: z.string() }),
+      input: z.object({ word: z.string().min(1, "Word is required").max(100, "Word is too long") }),
       responses: {
         201: z.custom<typeof curseLogs.$inferSelect>(),
         400: errorSchemas.validation,

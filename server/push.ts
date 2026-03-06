@@ -47,7 +47,14 @@ export function setupPushRoutes(app: Express) {
       const userId = req.userId;
       const subscription = req.body;
 
-      if (!subscription || !subscription.endpoint) {
+      if (
+        !subscription ||
+        typeof subscription.endpoint !== "string" ||
+        !subscription.endpoint.startsWith("https://") ||
+        !subscription.keys ||
+        typeof subscription.keys.p256dh !== "string" ||
+        typeof subscription.keys.auth !== "string"
+      ) {
         return res.status(400).json({ message: "Invalid subscription" });
       }
 
@@ -79,6 +86,10 @@ export function setupPushRoutes(app: Express) {
     try {
       const userId = req.userId;
       const { word } = req.body;
+
+      if (word !== undefined && (typeof word !== "string" || word.length > 100)) {
+        return res.status(400).json({ message: "Invalid word" });
+      }
 
       const subs = await db
         .select()

@@ -6,6 +6,25 @@ import { db } from "./db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const record = loginAttempts.get(key);
+  if (!record || now - record.lastAttempt > LOGIN_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, lastAttempt: now });
+    return true;
+  }
+  if (record.count >= MAX_LOGIN_ATTEMPTS) {
+    return false;
+  }
+  record.count++;
+  record.lastAttempt = now;
+  return true;
+}
+
 export function setupAuth(app: Express) {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
   const pgStore = connectPg(session);
@@ -36,8 +55,17 @@ export function setupAuth(app: Express) {
     try {
       const { email, password } = req.body;
 
-      if (!email || !password) {
+      if (!email || !password || typeof email !== "string" || typeof password !== "string") {
         return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      if (!checkRateLimit(`register:${clientIp}`)) {
+        return res.status(429).json({ message: "Too many registration attempts. Please try again later." });
+      }
+
+      if (email.length > 255) {
+        return res.status(400).json({ message: "Email is too long" });
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -82,8 +110,14 @@ export function setupAuth(app: Express) {
     try {
       const { email, password } = req.body;
 
-      if (!email || !password) {
+      if (!email || !password || typeof email !== "string" || typeof password !== "string") {
         return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const rateLimitKey = `${clientIp}:${typeof email === "string" ? email.toLowerCase() : ""}`;
+      if (!checkRateLimit(rateLimitKey)) {
+        return res.status(429).json({ message: "Too many login attempts. Please try again later." });
       }
 
       const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
