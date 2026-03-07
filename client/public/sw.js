@@ -21,7 +21,7 @@ self.addEventListener("push", (event) => {
     body: data.body,
     icon: "/favicon.png",
     badge: "/favicon.png",
-    tag: "curse-detection",
+    tag: "curse-notification",
     renotify: true,
     requireInteraction: true,
     vibrate: [200, 100, 200],
@@ -48,19 +48,4 @@ self.addEventListener("notificationclick", (event) => {
         }
       })
   );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "CURSE_DETECTED") {
-    const word = event.data.word || "unknown";
-    self.registration.showNotification("Hey! You CURSED!", {
-      body: `You said "${word}". A punishment has been assigned.`,
-      icon: "/favicon.png",
-      badge: "/favicon.png",
-      tag: "curse-detection-" + Date.now(),
-      renotify: true,
-      vibrate: [200, 100, 200],
-      data: { url: "/dashboard" },
-    });
-  }
 });

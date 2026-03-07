@@ -5,9 +5,10 @@ import { detectCurseWords } from "@shared/curse-detection";
 import {
   registerServiceWorker,
   subscribeToPush,
-  sendLocalNotification,
   requestNotificationPermission,
 } from "@/lib/push-notifications";
+
+const DEDUP_WINDOW_MS = 5000;
 
 export function useActiveListening() {
   const isListeningRef = useRef(false);
@@ -22,6 +23,8 @@ export function useActiveListening() {
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processedIndexRef = useRef(0);
+  const recentlyLoggedRef = useRef<Map<string, number>>(new Map());
 
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -31,10 +34,23 @@ export function useActiveListening() {
     registerServiceWorker();
   }, []);
 
+  const isRecentlyLogged = useCallback((word: string): boolean => {
+    const now = Date.now();
+    const lastTime = recentlyLoggedRef.current.get(word);
+    if (lastTime && now - lastTime < DEDUP_WINDOW_MS) {
+      return true;
+    }
+    recentlyLoggedRef.current.set(word, now);
+    for (const [key, time] of recentlyLoggedRef.current.entries()) {
+      if (now - time > DEDUP_WINDOW_MS * 2) {
+        recentlyLoggedRef.current.delete(key);
+      }
+    }
+    return false;
+  }, []);
+
   const notifyUser = useCallback(
     (word: string) => {
-      sendLocalNotification(word);
-
       toast({
         title: "Hey! You CURSED!",
         description: `You said "${word}". Punishment assigned.`,
@@ -48,7 +64,6 @@ export function useActiveListening() {
     if ("wakeLock" in navigator) {
       try {
         wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
-        console.log("Wake Lock active");
 
         wakeLockRef.current.addEventListener("release", () => {
           if (isListeningRef.current && "wakeLock" in navigator) {
@@ -56,7 +71,6 @@ export function useActiveListening() {
               .request("screen")
               .then((lock: any) => {
                 wakeLockRef.current = lock;
-                console.log("Wake Lock re-acquired");
               })
               .catch(() => {});
           }
@@ -84,6 +98,9 @@ export function useActiveListening() {
   const abortRecognition = useCallback(() => {
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
         recognitionRef.current.abort();
       } catch (e) {
         try {
@@ -104,9 +121,11 @@ export function useActiveListening() {
     releaseWakeLock();
     setIsListening(false);
     setRemainingTime(null);
-  }, [releaseWakeLock, abortRecognition]);
+    processedIndexRef.current = 0;
+    recentlyLoggedRef.current.clear();
+  }, [releaseWakeLock, abortRecognition, setIsListening]);
 
-  const createRecognition = useCallback(() => {
+  const startRecognition = useCallback(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
@@ -114,20 +133,39 @@ export function useActiveListening() {
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = "en-US";
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3;
+
+    processedIndexRef.current = 0;
 
     recognition.onresult = (event: any) => {
-      const transcript =
-        event.results[event.results.length - 1][0].transcript;
-      console.log("Heard:", transcript);
+      for (let i = processedIndexRef.current; i < event.results.length; i++) {
+        const result = event.results[i];
 
-      const curses = detectCurseWords(transcript);
-      for (const curse of curses) {
-        console.log("Detected curse word:", curse);
-        logCurse({ word: curse });
-        notifyUser(curse);
+        if (!result.isFinal) continue;
+
+        processedIndexRef.current = i + 1;
+
+        const allTranscripts = new Set<string>();
+        for (let alt = 0; alt < result.length; alt++) {
+          allTranscripts.add(result[alt].transcript);
+        }
+
+        const allCurses = new Set<string>();
+        for (const transcript of allTranscripts) {
+          const curses = detectCurseWords(transcript);
+          for (const curse of curses) {
+            allCurses.add(curse);
+          }
+        }
+
+        for (const curse of allCurses) {
+          if (!isRecentlyLogged(curse)) {
+            logCurse({ word: curse });
+            notifyUser(curse);
+          }
+        }
       }
     };
 
@@ -138,46 +176,41 @@ export function useActiveListening() {
         event.error === "service-not-allowed"
       ) {
         stopListening();
+        return;
+      }
+      if (event.error === "no-speech" || event.error === "audio-capture") {
+        return;
       }
     };
 
     recognition.onend = () => {
-      if (isListeningRef.current) {
-        console.log("Recognition ended, scheduling restart...");
-        clearRestartTimeout();
-        restartTimeoutRef.current = setTimeout(() => {
-          if (isListeningRef.current) {
-            try {
-              abortRecognition();
-              const newRec = createRecognition();
-              if (newRec) {
-                recognitionRef.current = newRec;
-                newRec.start();
-                console.log("Recognition restarted successfully");
+      if (!isListeningRef.current) return;
+
+      clearRestartTimeout();
+      restartTimeoutRef.current = setTimeout(() => {
+        if (!isListeningRef.current) return;
+        abortRecognition();
+        const newRec = startRecognition();
+        if (newRec) {
+          recognitionRef.current = newRec;
+          try {
+            newRec.start();
+          } catch (e) {
+            restartTimeoutRef.current = setTimeout(() => {
+              if (!isListeningRef.current) return;
+              const retry = startRecognition();
+              if (retry) {
+                recognitionRef.current = retry;
+                try { retry.start(); } catch (e2) {}
               }
-            } catch (e) {
-              console.error("Restart failed, retrying in 2s:", e);
-              restartTimeoutRef.current = setTimeout(() => {
-                if (isListeningRef.current) {
-                  try {
-                    const retryRec = createRecognition();
-                    if (retryRec) {
-                      recognitionRef.current = retryRec;
-                      retryRec.start();
-                    }
-                  } catch (e2) {
-                    console.error("Second restart failed:", e2);
-                  }
-                }
-              }, 2000);
-            }
+            }, 2000);
           }
-        }, 300);
-      }
+        }
+      }, 200);
     };
 
     return recognition;
-  }, [logCurse, notifyUser, stopListening, clearRestartTimeout, abortRecognition]);
+  }, [logCurse, notifyUser, stopListening, clearRestartTimeout, abortRecognition, isRecentlyLogged]);
 
   const startListening = useCallback(async () => {
     const SpeechRecognition =
@@ -197,11 +230,21 @@ export function useActiveListening() {
       await subscribeToPush();
     }
 
-    const recognition = createRecognition();
+    abortRecognition();
+    processedIndexRef.current = 0;
+
+    const recognition = startRecognition();
     if (!recognition) return;
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start recognition:", e);
+      return;
+    }
+
     setIsListening(true);
     setRemainingTime(3600);
     requestWakeLock();
@@ -219,25 +262,23 @@ export function useActiveListening() {
         return prev !== null ? prev - 1 : null;
       });
     }, 1000);
-  }, [createRecognition, requestWakeLock, stopListening, toast]);
+  }, [startRecognition, requestWakeLock, stopListening, toast, abortRecognition, setIsListening]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && isListeningRef.current) {
-        console.log("Tab visible again, restarting recognition...");
         abortRecognition();
 
         setTimeout(() => {
-          if (isListeningRef.current) {
-            const newRec = createRecognition();
-            if (newRec) {
-              recognitionRef.current = newRec;
-              try {
-                newRec.start();
-                console.log("Recognition restarted after tab focus");
-              } catch (e) {
-                console.error("Failed to restart on focus:", e);
-              }
+          if (!isListeningRef.current) return;
+          processedIndexRef.current = 0;
+          const newRec = startRecognition();
+          if (newRec) {
+            recognitionRef.current = newRec;
+            try {
+              newRec.start();
+            } catch (e) {
+              console.error("Failed to restart on focus:", e);
             }
           }
         }, 500);
@@ -250,7 +291,7 @@ export function useActiveListening() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [createRecognition, abortRecognition, requestWakeLock]);
+  }, [startRecognition, abortRecognition, requestWakeLock]);
 
   useEffect(() => {
     return () => {

@@ -57,24 +57,6 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   }
 }
 
-export async function sendLocalNotification(word: string): Promise<void> {
-  if (!swRegistration) {
-    swRegistration = await registerServiceWorker();
-  }
-
-  if (swRegistration?.active) {
-    swRegistration.active.postMessage({
-      type: "CURSE_DETECTED",
-      word,
-    });
-  } else if ("Notification" in window && Notification.permission === "granted") {
-    new Notification("Hey! You CURSED!", {
-      body: `You said "${word}". A punishment has been assigned.`,
-      icon: "/favicon.png",
-    });
-  }
-}
-
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");

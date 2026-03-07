@@ -8,9 +8,15 @@ import { useCreateCurseLog } from "@/hooks/use-curse-logs";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isCurseWord } from "@shared/curse-detection";
 
 const schema = z.object({
-  word: z.string().min(1, "You must enter a word").max(50, "Word is too long"),
+  word: z.string()
+    .min(1, "You must enter a word")
+    .max(50, "Word is too long")
+    .refine((val) => isCurseWord(val), {
+      message: "Please only enter curse words",
+    }),
 });
 
 type FormData = z.infer<typeof schema>;

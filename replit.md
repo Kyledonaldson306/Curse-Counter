@@ -25,13 +25,16 @@ Preferred communication style: Simple, everyday language.
 
 ### Curse Detection System
 - **Location**: `shared/curse-detection.ts` — shared between client and server
-- **Word list**: 60+ curse words including common variations, plurals, and compound forms
-- **Normalization**: Lowercase conversion, punctuation stripping, leet speak decoding (@ -> a, $ -> s, etc.), repeated character collapsing (fuuuck -> fuck), and multi-variant matching
+- **Word list**: 250+ curse words including profanity, racial/ethnic/homophobic/gendered slurs, vulgar terms, British slang, compound forms, and euphemistic variations
+- **Normalization**: Lowercase conversion, punctuation stripping, leet speak decoding (@ -> a, $ -> s, 8 -> b, etc.), repeated character collapsing (fuuuck -> fuck), and multi-variant matching
+- **Bigram detection**: Adjacent words are joined and checked (e.g., "porch monkey" → "porchmonkey") to catch multi-word slurs
+- **Validation**: Both client-side (Zod `.refine()` in form) and server-side (routes.ts) reject non-curse words with "Please only enter curse words" message
+- **Set-based lookup**: Uses `Set` for O(1) word lookups instead of array scanning
 - **API**: `detectCurseWords(text)` returns array of detected words, `isCurseWord(word)` checks single word
 
 ### Push Notifications
-- **Service Worker**: `client/public/sw.js` handles push events, notification clicks, and local message-based notifications
-- **Client**: `client/src/lib/push-notifications.ts` manages service worker registration, push subscription, and local notification fallback
+- **Service Worker**: `client/public/sw.js` handles push events and notification clicks
+- **Client**: `client/src/lib/push-notifications.ts` manages service worker registration and push subscription
 - **Server**: `server/push.ts` handles VAPID key serving, subscription storage, and push delivery via `web-push`
 - **Flow**: When a curse is logged via POST `/api/curse-logs`, the server automatically sends a push notification to all user subscriptions
 - **Notification text**: "Hey! You CURSED!" with the detected word in the body
@@ -81,8 +84,8 @@ Preferred communication style: Simple, everyday language.
 - **Shared detection**: Curse word detection logic in `shared/curse-detection.ts` is used by both client (speech recognition) and server (validation)
 - **Punishment system**: Punishments are randomly selected server-side from a predefined list when a curse is logged
 - **Speech recognition**: Browser-based Web Speech API used for optional real-time listening mode — no server-side audio processing needed
-- **Active listening**: Uses `useRef` for listening state to avoid stale closures in recognition callbacks; Wake Lock API keeps screen active during sessions; visibility change handler restarts recognition when tab regains focus
-- **Server-triggered push**: Push notifications are triggered server-side when a curse is logged, not client-side, ensuring delivery even when the tab is backgrounded
+- **Active listening**: Uses `useRef` for listening state to avoid stale closures in recognition callbacks; Wake Lock API keeps screen active during sessions; visibility change handler restarts recognition when tab regains focus; `interimResults: true` with `processedIndex` tracking for faster detection; `maxAlternatives: 3` checks multiple transcription alternatives; dedup window (5s) prevents same word being logged multiple times in rapid succession
+- **Server-triggered push**: Push notifications are triggered server-side only when a curse is logged, not client-side, ensuring exactly one notification per curse word. Client shows only an in-app toast, no local SW notification
 
 ## External Dependencies
 

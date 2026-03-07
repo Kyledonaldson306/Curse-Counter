@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, isAuthenticated } from "./auth";
 import { setupPushRoutes, sendPushToUser } from "./push";
+import { isCurseWord } from "@shared/curse-detection";
 
 const PUNISHMENTS = [
   "Do 10 pushups",
@@ -44,6 +45,14 @@ export async function registerRoutes(
   app.post(api.curseLogs.create.path, isAuthenticated, async (req: any, res) => {
     try {
       const input = api.curseLogs.create.input.parse(req.body);
+
+      if (!isCurseWord(input.word)) {
+        return res.status(400).json({
+          message: "Please only enter curse words",
+          field: "word",
+        });
+      }
+
       const userId = req.userId;
       const punishment = getRandomPunishment();
       const log = await storage.createCurseLog(userId, input.word, punishment);

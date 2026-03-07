@@ -1,31 +1,151 @@
 const CURSE_WORDS = [
-  "damn", "dammit", "damnit", "goddamn", "goddamnit",
-  "hell",
-  "crap", "crappy",
-  "piss", "pissed", "pissing",
+  "damn", "dammit", "damnit", "goddamn", "goddamnit", "goddamned",
+  "hell", "hellhole",
+  "crap", "crappy", "crappiest",
+  "piss", "pissed", "pissing", "pissoff",
   "bastard", "bastards",
   "bloody",
-  "shit", "shits", "shitty", "bullshit", "horseshit", "dipshit", "shithead",
-  "fuck", "fucker", "fuckers", "fucking", "fucked", "motherfucker", "motherfucking", "wtf", "stfu",
-  "ass", "asses", "asshole", "assholes", "dumbass", "jackass", "badass", "smartass", "fatass", "asshat",
-  "bitch", "bitches", "bitchy", "bitching", "sonofabitch",
-  "dick", "dicks", "dickhead",
-  "cock", "cocks", "cocksucker",
-  "penis",
-  "wiener",
-  "whore", "whores",
-  "slut", "sluts", "slutty",
-  "douche", "douchebag",
-  "twat",
-  "wanker", "wankers",
+
+  "shit", "shits", "shitty", "shittiest", "shitter", "bullshit", "horseshit",
+  "dipshit", "shithead", "shitface", "shitshow", "shithole", "shitstain",
+  "batshit", "apeshit", "chickenshit",
+
+  "fuck", "fucker", "fuckers", "fucking", "fucked", "fucks",
+  "motherfucker", "motherfucking", "motherfuckers",
+  "clusterfuck", "fuckface", "fuckhead", "fuckwit", "fuckboy",
+  "fuckoff", "fuckup", "unfuckingbelievable",
+  "wtf", "stfu", "gtfo",
+
+  "ass", "asses", "asshole", "assholes", "dumbass", "jackass",
+  "badass", "smartass", "fatass", "asshat", "assclown", "asswipe",
+  "lardass", "lazyass", "hardass", "kickass",
+
+  "bitch", "bitches", "bitchy", "bitching", "bitchass",
+  "sonofabitch", "sonuvabitch",
+
+  "dick", "dicks", "dickhead", "dickwad", "dickface", "dickbag",
+  "dickweed", "dickless",
+
+  "cock", "cocks", "cocksucker", "cocksuckers", "cocky",
+  "cockblock", "cockhead",
+
+  "penis", "wiener",
+  "whore", "whores", "whorehouse",
+  "slut", "sluts", "slutty", "slutshaming",
+  "douche", "douchebag", "douchebags", "douchey", "douchy",
+  "twat", "twats", "twatwaffle",
+  "wanker", "wankers", "wank",
   "bollocks",
-  "arse", "arsehole",
-  "tits",
-  "boobs",
+  "arse", "arsehole", "arseholes",
+  "tits", "titty", "titties",
+  "boobs", "boobies",
   "cunt", "cunts",
   "suck", "sucks", "sucking",
   "blows",
-  "screw", "screwed",
+  "screw", "screwed", "screwing", "screwyou",
+
+  "nigger", "niggers", "nigga", "niggas", "negro", "negros",
+  "spic", "spics", "spick", "spicks",
+  "wetback", "wetbacks",
+  "beaner", "beaners",
+  "chink", "chinks",
+  "gook", "gooks",
+  "jap", "japs",
+  "kike", "kikes",
+  "raghead", "ragheads",
+  "towelhead", "towelheads",
+  "camelhumper",
+  "cracker", "crackers",
+  "honky", "honkey", "honkies",
+  "gringo", "gringos",
+  "redskin", "redskins",
+  "injun",
+  "coon", "coons",
+  "darkie", "darkies", "darky",
+  "porchmonkey",
+  "zipperhead",
+  "halfbreed",
+
+  "faggot", "faggots", "fag", "fags", "faggy",
+  "dyke", "dykes",
+  "homo", "homos",
+  "queer", "queers",
+  "tranny", "trannies",
+  "shemale", "shemales",
+  "lesbo", "lesbos",
+  "pansy", "pansies",
+  "sissy", "sissies",
+  "sodomite",
+  "buttboy",
+
+  "retard", "retards", "retarded", "tard", "tards",
+  "spaz", "spazz", "spastic",
+  "cripple", "crippled",
+  "mongoloid",
+
+  "skank", "skanks", "skanky",
+  "hoe", "hoes", "hoebag",
+  "tramp", "tramps",
+  "floozy", "floozies",
+  "hooker", "hookers",
+  "prostitute",
+  "tart", "tarts",
+  "trollop",
+
+  "prick", "pricks",
+  "bellend", "bellends",
+  "knob", "knobhead", "knobend",
+  "tosser", "tossers",
+  "pillock",
+  "plonker",
+  "minger", "minging",
+  "git",
+  "sod", "sodoff",
+  "bugger", "buggers", "buggery",
+  "wazzock",
+  "berk",
+  "numpty",
+
+  "choad", "chode",
+  "gooch",
+  "taint",
+  "queef", "queefs",
+  "felch",
+  "rimjob",
+  "jizz", "jizzed",
+  "cum", "cumshot", "cumming",
+  "spunk",
+  "dildo", "dildos",
+  "buttplug",
+  "blowjob", "blowjobs",
+  "handjob",
+  "jackoff", "jerkoff", "wankoff",
+  "circlejerk",
+  "bukakke", "bukkake",
+  "creampie",
+
+  "goddamnfucking", "motherfuckingshit",
+  "shitfuck", "fuckshit",
+  "asshat", "assmonkey", "buttmunch", "buttface", "butthead",
+  "dirtbag", "scumbag", "scumbags",
+  "sleazebag", "sleazeball",
+  "ratbastard",
+  "nutjob", "nutcase",
+  "psycho",
+  "pervert", "perv", "pervs", "perverted",
+
+  "friggin", "freakin", "freaking", "effing", "effin",
+
+  "biatch", "biotch", "beyotch",
+  "mofo",
+  "sob",
+  "sumbitch",
+
+  "shtick", "schmuck", "schmucks",
+  "putz",
+  "gonads", "nads",
+  "balls", "ballsack",
+  "nutsack",
 ];
 
 const LEET_MAP: Record<string, string> = {
@@ -39,7 +159,13 @@ const LEET_MAP: Record<string, string> = {
   "$": "s",
   "7": "t",
   "+": "t",
+  "8": "b",
+  "9": "g",
+  "6": "g",
+  "2": "z",
 };
+
+const CURSE_SET = new Set(CURSE_WORDS);
 
 function normalizeLeet(word: string): string {
   let result = "";
@@ -80,22 +206,34 @@ export function detectCurseWords(text: string): string[] {
   const detected: string[] = [];
   const alreadyFound = new Set<string>();
 
-  for (const rawWord of words) {
-    const variants = normalizeWord(rawWord);
-
-    for (const variant of variants) {
-      let matched = false;
-      for (const curse of CURSE_WORDS) {
-        if (variant === curse) {
-          if (!alreadyFound.has(curse)) {
-            detected.push(curse);
-            alreadyFound.add(curse);
-          }
-          matched = true;
+  for (let i = 0; i < words.length; i++) {
+    if (i + 1 < words.length) {
+      const bigram = words[i] + words[i + 1];
+      const bigramVariants = normalizeWord(bigram);
+      let bigramMatched = false;
+      for (const variant of bigramVariants) {
+        if (CURSE_SET.has(variant) && !alreadyFound.has(variant)) {
+          detected.push(variant);
+          alreadyFound.add(variant);
+          bigramMatched = true;
           break;
         }
       }
-      if (matched) break;
+      if (bigramMatched) {
+        i++;
+        continue;
+      }
+    }
+
+    const variants = normalizeWord(words[i]);
+    for (const variant of variants) {
+      if (CURSE_SET.has(variant)) {
+        if (!alreadyFound.has(variant)) {
+          detected.push(variant);
+          alreadyFound.add(variant);
+        }
+        break;
+      }
     }
   }
 
@@ -103,8 +241,8 @@ export function detectCurseWords(text: string): string[] {
 }
 
 export function isCurseWord(word: string): boolean {
-  const variants = normalizeWord(word);
-  return variants.some((v) => CURSE_WORDS.includes(v));
+  const variants = normalizeWord(word.trim());
+  return variants.some((v) => CURSE_SET.has(v));
 }
 
 export { CURSE_WORDS };
